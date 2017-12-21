@@ -47,7 +47,7 @@ class XmlCrawlerHelper
      */
     public static function formatLibXmlErrors($errors)
     {
-        $formatedErrors = array();
+        $formatedErrors = [];
         foreach ($errors as $error) {
             $return = str_repeat('-', $error->column) . "^\n";
 

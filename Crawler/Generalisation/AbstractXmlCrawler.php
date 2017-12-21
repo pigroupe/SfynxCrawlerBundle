@@ -14,8 +14,13 @@
  * @link       http://opensource.org/licenses/gpl-license.php
  * @since      2015-02-16
  */
+namespace Sfynx\CrawlerBundle\Crawler\Generalisation;
 
-namespace Sfynx\CrawlerBundle\Crawler;
+use Sfynx\CrawlerBundle\Crawler\XmlCrawlerValidator;
+use Sfynx\CrawlerBundle\Crawler\XmlCrawlerIterator;
+use Sfynx\CrawlerBundle\Crawler\XmlCrawlerTransformer;
+use Sfynx\CrawlerBundle\Crawler\XmlCrawlerHelper;
+use Sfynx\CrawlerBundle\Crawler\Exception\ExceptionXmlCrawler;
 
 /**
  * This generic class is used to return a valid SimpleXml object
@@ -26,128 +31,67 @@ namespace Sfynx\CrawlerBundle\Crawler;
  * @author  Etienne de Longeaux <etienne.delongeaux@gmail.com>
  * @package Crawler
  */
-abstract class GenericCrawler
+abstract class AbstractXmlCrawler implements XmlCrawlerInterface
 {
+    use TraitOverideConfiguration;
+
+    /**
+     * @var XmlCrawlerValidator
+     */
+    protected $validator = null;
+
+    /**
+     * @var XmlCrawlerIterator
+     */
+    protected $iterator = null;
+
+    /**
+     * @var XmlCrawlerTransformer
+     */
+    protected $transformer = null;
+
+    /**
+     * @var \SimpleXMLElement
+     */
+    protected $simpleXml = null;
+    protected $typeXml = 'file';
+
     protected $configuration;
     protected $localXml = null;
     protected $distantXml = null;
-    protected $validator = null;
     protected $archiver = null;
-    protected $errors = array();
-    protected $simpleXml;
+    protected $errors = [];
+    protected $isDestroyFile;
+
+    const simplexmlLoadFunction = [
+        'file' => 'simplexml_load_file',
+        'source' => 'simplexml_load_string'
+    ];
 
     /**
      * Class constructor
      *
-     * @param string $xmlFile path to the xml
+     * @param string $xml path|source to the xml
      * @param array  $options an array of parameters overload the default configuration
+     * @param boolean $isDestroyFile
      */
-    public function __construct($xmlFile, $options = array())
+    public function __construct($xml, $options = [], $isDestroyFile = false)
     {
-        $this->setDefaultConfiguration();
-        $this->overideConfiguration($options);
-        if (!XmlCrawlerHelper::pathIsLocal($xmlFile)) {
+        $this->isDestroyFile = $isDestroyFile;
+
+        if (!file_exists($xml)) {
+            $this->typeXml = 'source';
+            $this->localXml = $xml;
+        } elseif (!XmlCrawlerHelper::pathIsLocal($xml)) {
             $this->validWorkingFolder();
             $this->validCurl();
-            $this->distantXml = $xmlFile;
-        } elseif (!file_exists($xmlFile)) {
-            throw new XmlCrawlerException('Can not find '. $xmlFile);
+            $this->distantXml = $xml;
         } else {
-            $this->localXml = $xmlFile;
+            $this->localXml = $xml;
         }
         $this->setDefaultConfiguration();
         $this->overideConfiguration($options);
-    }
-
-    /**
-     * This method return configuration's parameters
-     *
-     * @return array configuration's parameters used by object after instantiation
-     */
-    public function getConfiguration()
-    {
-        return $this->configuration;
-    }
-
-    /**
-     * This method return errors generated during processing of the xml source
-     *
-     * @return array errors generated during processing of the xml source
-     */
-    public function getErrors()
-    {
-        return $this->errors;
-    }
-
-    /**
-     * this method set a XmlCrawlerValidator object that will be used ti validate local xml file
-     * before return it. This is an option
-     *
-     * @param Sfynx\CrawlerBundle\Crawler\XmlCrawlerValidator $validator validator object
-     */
-    public function setValidator(XmlCrawlerValidator $validator)
-    {
-        $this->validator = $validator;
-    }
-
-    /**
-     * this method set a XmlCrawlerArchiver object that will archive xml file after parsing.
-     * This is an option
-     *
-     * @param Sfynx\CrawlerBundle\Crawler\XmlCrawlerArchiver $validator validator object
-     */
-    public function setArchiver(XmlCrawlerArchiver $archiver)
-    {
-        $this->archiver = $archiver;
-    }
-
-    /**
-     * this method return source Xml as SimpleXml Object if it's possible, false if not.
-     * It should be false if source xml is distant and unattainable, or xml is incorrectly formatted,
-     * or not validate by xsd file (via an XmlCrawlerValidator)
-     *
-     * @return \SimpleXml source Xml as SimpleXml Object
-     */
-    public function getSimpleXml()
-    {
-        if ($this->localXml === null && $this->distantXml !== null) {
-            $this->getDistantXmlWithCurl();
-        }
-
-        if ($this->localXml === null) {
-            $this->errors['localXml'] = 'localXml is null';
-
-            return false;
-        }
-        if ($this->validator !== null && !$this->validator->xmlIsValid($this->localXml)) {
-            $this->errors['xmlNotValide'] = $this->validator->getErrors();
-
-            return false;
-        }
-        libxml_use_internal_errors(true);
-        if (!$this->simpleXml = simplexml_load_file($this->localXml)) {
-            $this->errors['badFormat'] = XmlCrawlerHelper::formatLibXmlErrors(libxml_get_errors());
-            libxml_clear_errors();
-
-            return false;
-        }
-        //@todo use XmlCrawlerArchiver if it's set.
-        return $this->simpleXml;
-    }
-
-    /**
-     * This method overide default configuration parameters with parameters passed in $options from constructor
-     *
-     * @param array $options parameters passed in $options from constructor
-     */
-    public function overideConfiguration($options)
-    {
-        foreach ($options as $optionKey => $optionValue) {
-            if (array_key_exists($optionKey, $this->configuration)
-                && (is_bool($optionValue) || trim($optionValue) != "")) {
-                $this->configuration[$optionKey] = $optionValue;
-            }
-        }
+        $this->setTransformer(new XmlCrawlerTransformer());
     }
 
     /**
@@ -157,54 +101,159 @@ abstract class GenericCrawler
      */
     public function __destruct()
     {
-        if ($this->distantXml !== null && file_exists($this->localXml)) {
+        if ($this->isDestroyFile
+            && ($this->typeXml == 'file')
+            && $this->distantXml !== null
+            && file_exists($this->localXml)
+        ) {
             unlink($this->localXml);
         }
     }
 
     /**
-     * this method must return an array of arrays, ready to be set on a specific propel object
-     *
-     * @return array array of arrays, ready to be set on a specific propel object
-     * @abstract
+     * {@inheritdoc}
      */
-    abstract public function getXmlDataInArray();
+    public function setValidator(XmlCrawlerValidator $validator)
+    {
+        $this->validator = $validator;
+    }
+
+
+    /**
+     * {@inheritdoc}
+     */
+    public function setIterator(XmlCrawlerIterator $iterator)
+    {
+        $this->iterator = $iterator;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function setTransformer(XmlCrawlerTransformer $transformer)
+    {
+        $this->transformer = $transformer;
+    }
+
+    /**
+     * {@inheritdoc}
+     *
+     * @link https://www.w3schools.com/xml/schema_complex_any.asp
+     * @link https://msdn.microsoft.com/en-us/library/ms256043(v=vs.110).aspx
+     */
+    public function getSimpleXml()
+    {
+        if ($this->localXml === null && $this->distantXml !== null) {
+            $this->getDistantXmlWithCurl();
+        }
+        if ($this->localXml === null) {
+            $this->errors['localXml'] = 'localXml is null';
+
+            return false;
+        }
+        if ($this->validator !== null
+            && !$this->validator->xmlIsValid($this->localXml)
+        ) {
+            $this->errors['xmlNotValide'] = $this->validator->getErrors();
+
+            return false;
+        }
+        libxml_use_internal_errors(true);
+
+        $simplexmlLoadFunction = self::simplexmlLoadFunction[$this->typeXml];
+        if (!$this->simpleXml = call_user_func($simplexmlLoadFunction, $this->localXml)) {
+            $this->errors['badFormat'] = XmlCrawlerHelper::formatLibXmlErrors(libxml_get_errors());
+            libxml_clear_errors();
+
+            return false;
+        }
+        return $this->simpleXml;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    abstract public function getDataInArray(array $data = null);
+
+    /**
+     * Array structure of the Xml with default values
+     *
+     * @param array $data
+     * @return array
+     */
+    abstract protected function defaultParams(array $data = null);
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getDataInObject(array $data = null)
+    {
+        if (null === $data) {
+            return json_decode(json_encode($this->getDataInArray()), FALSE);
+        }
+        return json_decode(json_encode($data), FALSE);
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getConfiguration()
+    {
+        return $this->configuration;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getErrors()
+    {
+        return $this->errors;
+    }
 
     /**
      * this function set default configuration parameters
      */
     protected function setDefaultConfiguration()
     {
-        $this->configuration = array(
+        $this->configuration = [
             'createFolder' => false,
             'workingFolder' => null,
             'xmlLocalBaseName' => 'xmlImported',
             'verifyCertificates' => true
-        );
+        ];
     }
 
     /**
      *
-     * @throws XmlCrawlerException
+     * @throws ExceptionXmlCrawler
      */
-    private function validCurl()
+    protected function validCurl()
     {
         if (!in_array('curl', get_loaded_extensions())) {
-            throw new XmlCrawlerException('Curl must be loaded before use distant Xml');
+            throw new ExceptionXmlCrawler('Curl must be loaded before use distant Xml');
         }
     }
 
-    private function validWorkingFolder()
+    /**
+     * @throws ExceptionXmlCrawler
+     * @return void
+     */
+    protected function validWorkingFolder()
     {
-        if (!file_exists($this->configuration['workingFolder']) && $this->configuration['createFolder']) {
+        if (!file_exists($this->configuration['workingFolder'])
+            && $this->configuration['createFolder']
+        ) {
             mkdir($this->configuration['workingFolder'], 0777);
         }
         if (!is_writable($this->configuration['workingFolder'])) {
-            throw new XmlCrawlerException('WorkingFolder ('.$this->configuration['workingFolder'].') must be writable');
+            throw new ExceptionXmlCrawler('WorkingFolder ('.$this->configuration['workingFolder'].') must be writable');
         }
     }
 
-    private function getDistantXmlWithCurl()
+    /**
+     * @return bool
+     */
+    protected function getDistantXmlWithCurl()
     {
         set_time_limit(0);
         $destination = $this->configuration['workingFolder'] . '/' . $this->configuration['xmlLocalBaseName'] . '.xml';

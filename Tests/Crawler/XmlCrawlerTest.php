@@ -19,7 +19,7 @@ class XmlCrawlerTest extends \PHPUnit_Framework_TestCase
     }
 
     /**
-     * @expectedException Sfynx\CrawlerBundle\Crawler\XmlCrawlerException
+     * @expectedException Sfynx\CrawlerBundle\Crawler\ExceptionXmlCrawler
      */
     public function testLocalFileUnavailable()
     {
@@ -61,7 +61,7 @@ class XmlCrawlerTest extends \PHPUnit_Framework_TestCase
     }
 
     /**
-     * @expectedException Sfynx\CrawlerBundle\Crawler\XmlCrawlerException
+     * @expectedException Sfynx\CrawlerBundle\Crawler\ExceptionXmlCrawler
      */
     public function testOverideConfigurationWithUnexistingWorkingFolderWithCreateFolderFalseAndDistantXml()
     {
@@ -76,7 +76,7 @@ class XmlCrawlerTest extends \PHPUnit_Framework_TestCase
     }
 
     /**
-     * @expectedException Sfynx\CrawlerBundle\Crawler\XmlCrawlerException
+     * @expectedException Sfynx\CrawlerBundle\Crawler\ExceptionXmlCrawler
      */
     public function testOverideConfigurationWithWorkingFolderUnwritableAndDistantXml()
     {
@@ -92,7 +92,7 @@ class XmlCrawlerTest extends \PHPUnit_Framework_TestCase
     }
 
     /**
-     * @expectedException Sfynx\CrawlerBundle\Crawler\XmlCrawlerException
+     * @expectedException Sfynx\CrawlerBundle\Crawler\ExceptionXmlCrawler
      */
     public function testDistantXmlWithoutOverideWorkingFolderConfiguration()
     {

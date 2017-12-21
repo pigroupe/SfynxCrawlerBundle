@@ -15,6 +15,8 @@
 
 namespace Sfynx\CrawlerBundle\Crawler;
 
+use Sfynx\CrawlerBundle\Crawler\Generalisation\TraitOverideConfiguration;
+
 /**
  * This class is used to validate an imported xml file from an XmlCrawler object
  * with an XmlSchema file
@@ -24,27 +26,39 @@ namespace Sfynx\CrawlerBundle\Crawler;
  */
 class XmlCrawlerValidator
 {
+    use TraitOverideConfiguration;
+
+    /** @var \DOMDocument */
+    public $currentNode;
+
     protected $configuration;
-    protected $localXsd = null;
-    protected $errors = array();
+    protected $xsd = null;
+    protected $errors = [];
+    protected $typeXsd = 'source';
+    protected $typeXml = 'source';
+
+    const schemaValidateFunction = [
+        'file' => 'schemaValidate',
+        'source' => 'schemaValidateSource'
+    ];
+
+    const loadFunction = [
+        'file' => 'load',
+        'source' => 'loadXml'
+    ];
 
     /**
      * Class constructor
      *
-     * @param string $xsdFile path to the xsd
+     * @param string $xsd path|source to the xsd
      * @param array  $options an array of parameters overload the default configuration
      */
-    public function __construct($xsdFile, $options = array())
+    public function __construct($xsd, $options = [])
     {
-        //@todo gerer le cas ou le xsd est distant - pas besoin pour le moment
-        //@todo permettre de trouver dans le xml à tester le path vers le xsd
-        if (!XmlCrawlerHelper::pathIsLocal($xsdFile)) {
-            throw new XmlCrawlerException('The remote xsd are not yet manage in this version of XmlCrawlerValidator');
+        $this->xsd = $xsd;
+        if (file_exists($this->xsd)) {
+            $this->typeXsd = 'file';
         }
-        if (!file_exists($xsdFile)) {
-            throw new XmlCrawlerException('Can not find '. $xsdFile);
-        }
-        $this->localXsd = $xsdFile;
         $this->setDefaultConfiguration();
         $this->overideConfiguration($options);
     }
@@ -60,23 +74,30 @@ class XmlCrawlerValidator
     }
 
     /**
-     * This function test the validity of the xml file
+     * This function test the validity of the xml file|source
      *
-     * @param string $xmlToTest path to the xml to validate
+     * @param string $xml path|source to the xml to validate
      */
-    public function xmlIsValid($xmlToTest)
+    public function xmlIsValid($xml)
     {
-        $xml = new \DOMDocument();
-        $xml->load($xmlToTest);
+        $this->currentNode = new \DOMDocument();
+
+        if (file_exists($xml)) {
+            $this->typeXml = 'file';
+        }
+        if ($xml instanceof \DOMDocument) {
+            $xml = $xml->saveXML();
+        }
+        $loadFunction = self::loadFunction[$this->typeXml];
+        $this->currentNode->$loadFunction($xml);
 
         libxml_use_internal_errors(true);
-        if (!$xml->schemaValidate($this->localXsd)) {
+        $schemaValidateFunction = self::schemaValidateFunction[$this->typeXsd];
+        if (!$this->currentNode->$schemaValidateFunction($this->xsd)) {
             $this->errors = XmlCrawlerHelper::formatLibXmlErrors(libxml_get_errors());
             libxml_clear_errors();
-
             return false;
         }
-
         return true;
     }
 
@@ -93,29 +114,15 @@ class XmlCrawlerValidator
     /**
      * this function set default configuration parameters
      */
-    private function setDefaultConfiguration()
+    protected function setDefaultConfiguration()
     {
-        $this->configuration = array(
+        $this->configuration = [
             'createFolder' => false,
             'workingFolder' => null,
             'xsdLocalBaseName' => 'xsdImported',
             'archiveError' => false,
             'archiveTimestamp' => 'date', //should be date or datetime
             'archiveNumber' => 7
-        );
-    }
-
-    /**
-     * This method overide default configuration parameters with parameters passed in $options from constructor
-     *
-     * @param array $options parameters passed in $options from constructor
-     */
-    private function overideConfiguration($options)
-    {
-        foreach ($options as $optionKey => $optionValue) {
-            if (array_key_exists($optionKey, $this->configuration)) {
-                $this->configuration[$optionKey] = $optionValue;
-            }
-        }
+        ];
     }
 }
