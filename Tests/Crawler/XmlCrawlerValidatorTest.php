@@ -10,7 +10,7 @@ use Sfynx\CrawlerBundle\Crawler\XmlCrawlerValidator;
 class XmlCrawlerValidatorTest extends \PHPUnit_Framework_TestCase
 {
     /**
-     * @expectedException \Sfynx\CrawlerBundle\Crawler\XmlCrawlerException
+     * @expectedException \Sfynx\CrawlerBundle\Crawler\ExceptionXmlCrawler
      */
     public function testDistantXsd()
     {
@@ -20,7 +20,7 @@ class XmlCrawlerValidatorTest extends \PHPUnit_Framework_TestCase
     }
 
     /**
-     * @expectedException \Sfynx\CrawlerBundle\Crawler\XmlCrawlerException
+     * @expectedException \Sfynx\CrawlerBundle\Crawler\ExceptionXmlCrawler
      */
     public function testLocalFileUnavailable()
     {

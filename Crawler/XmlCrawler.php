@@ -17,6 +17,9 @@
 
 namespace Sfynx\CrawlerBundle\Crawler;
 
+use Sfynx\CrawlerBundle\Crawler\Generalisation\AbstractXmlCrawler;
+use Sfynx\CrawlerBundle\Crawler\Exception\ExceptionXmlCrawler;
+
 /**
  * This generic class is used to return a valid SimpleXml object
  * from an xml file that could be local or distant.
@@ -26,16 +29,24 @@ namespace Sfynx\CrawlerBundle\Crawler;
  * @author Etienne de Longeaux <etienne.delongeaux@gmail.com>
  * @package Crawler
  */
-class XmlCrawler extends GenericCrawler
+class XmlCrawler extends AbstractXmlCrawler
 {
     /**
-     * this method must return an array of arrays, ready to be set on a specific propel object
-     *
-     * @throw XmlCrawlerException this method is not implemented in XmlCrawler Class
-     *
+     * {@inheritdoc}
      */
-    public function getXmlDataInArray()
+    public function getDataInArray(array $data = null)
     {
-        throw new XmlCrawlerException('this method is not implemented in XmlCrawler Class');
+        if ($this->simpleXml) {
+            return (array) $this->simpleXml;
+        }
+        return [];
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    protected function defaultParams(array $data = null)
+    {
+        return [];
     }
 }

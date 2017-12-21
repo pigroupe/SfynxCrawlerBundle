@@ -13,7 +13,7 @@
                             </xs:restriction>
                          </xs:simpleType>
                       </xs:element>
-                      <xs:element name="montant" minOccurs="1" maxOccurs="1" >
+                      <xs:element name="amount" minOccurs="1" maxOccurs="1" >
                         <xs:simpleType>
                             <xs:restriction base="xs:decimal">
                                      <xs:minInclusive value="0.01"/>
@@ -34,7 +34,7 @@
                             </xs:restriction>
                          </xs:simpleType>
                       </xs:element>
-                      <xs:element name="marque" minOccurs="1" maxOccurs="1" >
+                      <xs:element name="brand" minOccurs="1" maxOccurs="1" >
                         <xs:simpleType>
                             <xs:restriction base="xs:string">
                                 <xs:minLength value="2"/>
@@ -51,7 +51,7 @@
                             </xs:restriction>
                          </xs:simpleType>
                       </xs:element>
-                      <xs:element name="statut" minOccurs="1" maxOccurs="1">
+                      <xs:element name="status" minOccurs="1" maxOccurs="1">
                          <xs:simpleType>
                             <xs:restriction base="xs:string">
                                      <xs:enumeration value="en stock"/>

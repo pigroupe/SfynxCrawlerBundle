@@ -1,10 +1,11 @@
 <?php
 namespace Sfynx\CrawlerBundle\Tests\Crawler\Crawler;
 
-use Sfynx\CrawlerBundle\Crawler\GenericCrawler;
+use Sfynx\CrawlerBundle\Crawler\Generalisation\AbstractXmlCrawler;
 
-class ExCrawler extends GenericCrawler
+class ExCrawler extends AbstractXmlCrawler
 {
+
     /**
      * this method overdide parent method to create a valid distant path, with a valid token
      *
@@ -22,24 +23,24 @@ class ExCrawler extends GenericCrawler
     /**
      * this method parse xml to set data in array, ready to be set on an Object.
      *
-     * @return array datas ready to be set on on Voucher Object
+     * @return array datas ready to be set
      */
-    public function getXmlDataInArray()
+    public function getDataInArray()
     {
-        $dataInArray = array();
+        $dataInArray = [];
         $xml = $this->getSimpleXml();
         if (!$xml) {
             return false;
         }
         foreach ($xml->coupon as $coupon) {
-            $objectData = array();
-            $objectData['Id'] = (integer) $coupon->id;
-            $objectData['Amount'] = (float) $coupon->montant;
-            $objectData['ImgUrl'] = (string) $coupon->img_url;
-            $objectData['Description'] = (string) $coupon->text;
-            $objectData['BrandName'] = (string) $coupon->marque;
-            $objectData['Type'] = (string) $coupon->type;
-            $objectData['Status'] = (string) $coupon->statut;
+            $objectData = [];
+            $objectData['id'] = (integer) $coupon->id;
+            $objectData['amount'] = (float) $coupon->amount;
+            $objectData['img_url'] = (string) $coupon->img_url;
+            $objectData['text'] = (string) $coupon->text;
+            $objectData['brand'] = (string) $coupon->brand;
+            $objectData['type'] = (string) $coupon->type;
+            $objectData['status'] = (string) $coupon->status;
             $dataInArray[] = $objectData;
         }
 
@@ -59,8 +60,6 @@ class ExCrawler extends GenericCrawler
 
     /**
      * this function set default configuration parameters
-     * SogecVoucher Must have one additional parameter : a key used to create a valid token
-     * used in distantXml url
      */
     protected function setDefaultConfiguration()
     {
@@ -69,12 +68,12 @@ class ExCrawler extends GenericCrawler
     }
 
     /**
-     * this method add a valid token to Sogec distant url
+     * this method add a valid token to distant url
      *
      */
-    private function prepareDistantUrl()
+    protected function prepareDistantUrl()
     {
-        $valideToken = md5($this->configuration['secretKey'] . date('Y-m-d'));
+        $valideToken = hash('sha512', $this->configuration['secretKey'] . date('Y-m-d'));
         $this->distantXml .= '/' . $valideToken;
     }
 }
