@@ -74,6 +74,9 @@ class Doctrine2OtherTransformer
         });
         $normalizers = [$normalizer];
         $encoders = [new XmlEncoder(), new JsonEncoder()];
+        if (\class_exists('Symfony\Component\Serializer\Encoder\CsvEncoder')) {
+            $encoders = \array_merge($encoders, [new Symfony\Component\Serializer\Encoder\CsvEncoder()]);
+        }
         $this->serializer = new Serializer($normalizers, $encoders);
         $this->result = new \StdClass();
     }
@@ -94,17 +97,16 @@ class Doctrine2OtherTransformer
         $NewInstance = new self();
 
         return $NewInstance
-            ->setContent($NewInstance->$method($dataObject, $format))
+            ->setContent($NewInstance->$method($dataObject))
             ->setContentType($contentType)
             ;
     }
 
     /**
      * @param $dataObject
-     * @param $format
      * @return \Symfony\Component\Serializer\Encoder\scalar
      */
-    public function exportToJson($dataObject, $format)
+    public function exportToJson($dataObject)
     {
         return $this->serializer->serialize($dataObject, 'json');
     }
@@ -124,6 +126,9 @@ class Doctrine2OtherTransformer
      */
     public function exportToCsv($dataObject)
     {
+        if (\class_exists('Symfony\Component\Serializer\Encoder\CsvEncoder')) {
+            return $this->serializer->serialize($dataObject, 'csv');
+        }
         $jsonTransform = $this->exportToJson($dataObject, 'json');
         $analyser = new Analyzer(new NullLogger(), new Structure());
         $parser = new Parser($analyser);
